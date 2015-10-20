@@ -23,7 +23,9 @@
         }
     },
     "autoload-dev": {
-        "psr-4": { "PhpWorkShop\\MyWorkshopTest\\": "test/" }
+        "psr-4": { 
+            "PhpSchool\\MyWorkshopTest\\": "test/" 
+        }
     },
     "bin": ["bin/php-workshop"]
 }
