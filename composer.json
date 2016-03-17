@@ -15,17 +15,20 @@
     },
     "require-dev": {
         "phpunit/phpunit": "~4.1",
-        "squizlabs/php_codesniffer": "~2.0"
+        "squizlabs/php_codesniffer": "~2.0",
+        "composer/composer": ">=1.0.0-beta"
     },
     "autoload" : {
         "psr-4" : {
-            "PhpSchool\\MyWorkshop\\": "src"
+            "WorkshopCreator\\": "src/WorkshopCreator"
         }
     },
     "autoload-dev": {
-        "psr-4": { 
-            "PhpSchool\\MyWorkshopTest\\": "test/" 
-        }
+        "psr-4": {}
+    },
+    "scripts" : {
+        "pre-install-cmd": "WorkshopCreator\\Creator::install",
+        "pre-update-cmd": "WorkshopCreator\\Creator::install"
     },
     "bin": ["bin/my-workshop"]
 }
