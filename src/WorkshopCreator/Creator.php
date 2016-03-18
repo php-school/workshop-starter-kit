@@ -51,6 +51,11 @@ class Creator
     private static $composerDefinition;
 
     /**
+     * @var string
+     */
+    private static $binaryName;
+
+    /**
      * Probably shouldn't do this
      *
      * @param IOInterface $io
@@ -114,7 +119,7 @@ class Creator
             3
         );
 
-        $binaryName = self::$io->askAndValidate(
+        self::$binaryName = self::$io->askAndValidate(
             "\n  <magenta> Binary name (program users will run, eg learnyouphp)? </magenta> ",
             function ($answer) {
                 if (!preg_match('/[a-z0-9-]+/', $answer)) {
@@ -136,9 +141,9 @@ class Creator
             self::$composerDefinition['autoload-dev']['psr-4'][sprintf('%sTest\\', trim($namespace, '\\'))] = 'test';
         });
 
-        self::runTask('Updating binary config', function () use ($binaryName) {
-            self::$composerDefinition['bin'] = [sprintf('bin/%s', $binaryName)];
-            rename(__DIR__ . '/../../bin/my-workshop', __DIR__ . '/../../bin/' . $binaryName);
+        self::runTask('Updating binary config', function () {
+            self::$composerDefinition['bin'] = [sprintf('bin/%s', self::$binaryName)];
+            rename(__DIR__ . '/../../bin/my-workshop', __DIR__ . '/../../bin/' . self::$binaryName);
         });
 
         self::runTask('Removing dev dependencies', function () {
@@ -150,6 +155,8 @@ class Creator
         self::runTask('Removing installer autoload and script config', function () {
             unset(self::$composerDefinition['scripts']['pre-update-cmd']);
             unset(self::$composerDefinition['scripts']['pre-install-cmd']);
+            unset(self::$composerDefinition['scripts']['post-update-cmd']);
+            unset(self::$composerDefinition['scripts']['post-install-cmd']);
             if (empty(self::$composerDefinition['scripts'])) {
                 unset(self::$composerDefinition['scripts']);
             }
@@ -163,11 +170,6 @@ class Creator
         self::runTask('Removing Workshop installer classes', function () {
             self::recursiveRmdir(__DIR__);
         });
-
-        self::$io->write(
-            sprintf("\n\n<magenta>Run your workshop with: %s bin/%s</magenta>", basename(PHP_BINARY), $binaryName)
-        );
-        self::$io->write("\n<magenta>DONE - Now build and educate!</magenta>\n");
     }
 
     /**
@@ -179,6 +181,17 @@ class Creator
         self::$io->write(sprintf('<info> - [ ] %s</info>', $message), false);
         $task();
         self::$io->overwrite(sprintf('<info> - [x] %s</info>', $message), true);
+    }
+
+    /**
+     * @param Event $event
+     */
+    public static function summary(Event $event)
+    {
+        self::$io->write(
+            sprintf("\n\n<magenta>Run your workshop with: %s bin/%s</magenta>", basename(PHP_BINARY), self::$binaryName)
+        );
+        self::$io->write("\n<magenta>DONE - Now build and educate!</magenta>\n");
     }
 
     /**
