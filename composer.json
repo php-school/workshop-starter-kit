@@ -28,7 +28,9 @@
     },
     "scripts" : {
         "pre-install-cmd": "WorkshopCreator\\Creator::install",
-        "pre-update-cmd": "WorkshopCreator\\Creator::install"
+        "pre-update-cmd": "WorkshopCreator\\Creator::install",
+        "post-install-cmd": "WorkshopCreator\\Creator::summary",
+        "post-update-cmd": "WorkshopCreator\\Creator::summary"
     },
     "bin": ["bin/my-workshop"]
 }
