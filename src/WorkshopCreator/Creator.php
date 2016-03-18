@@ -3,6 +3,7 @@
 namespace WorkshopCreator;
 
 use Composer\Factory;
+use Composer\IO\IOInterface;
 use Composer\Json\JsonFile;
 use Composer\Package\AliasPackage;
 use Composer\Script\Event;
@@ -10,6 +11,8 @@ use Exception;
 use FilesystemIterator;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
+use Symfony\Component\Console\Formatter\OutputFormatterStyle;
+use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * Class WorkshopInstaller
@@ -19,6 +22,18 @@ class Creator
 {
 
     /**
+     * @var string
+     */
+    private static $logo = '
+   ____    __  __  ____        ____            __                    ___
+  /\  _`\ /\ \/\ \/\  _`\     /\  _`\         /\ \                  /\_ \
+  \ \ \L\ \ \ \_\ \ \ \L\ \   \ \,\L\_\    ___\ \ \___     ___    __\//\ \
+   \ \ ,__/\ \  _  \ \ ,__/    \/_\__ \   /\'___\ \  _ `\  / __`\ / __`\ \ \
+    \ \ \/  \ \ \ \ \ \ \/       /\ \L\ \/\ \__/\ \ \ \ \/\ \L\ /\ \L\ \_\ \_
+     \ \_\   \ \_\ \_\ \_\       \ `\____\ \____\\ \_\ \_\ \____\ \____/\____\
+      \/_/    \/_/\/_/\/_/        \/_____/\/____/ \/_/\/_/\/___/ \/___/\/____/';
+
+    /**
      * @var array
      */
     private static $devDependencies = [
@@ -26,30 +41,58 @@ class Creator
     ];
 
     /**
+     * @var IOInterface
+     */
+    private static $io;
+
+    /**
+     * @var array
+     */
+    private static $composerDefinition;
+
+    /**
+     * Probably shouldn't do this
+     *
+     * @param IOInterface $io
+     */
+    private static function configureIo(IOInterface $io)
+    {
+        $refP = new \ReflectionProperty(get_class($io), 'output');
+        $refP->setAccessible(true);
+        $output = $refP->getValue($io);
+
+        /** @var OutputInterface $output */
+        $output->getFormatter()
+            ->setStyle('magenta', new OutputFormatterStyle('magenta', 'default', ['bold']));
+
+        self::$io = $io;
+    }
+
+    /**
      * @param Event $event
      */
     public static function install(Event $event)
     {
-        $io = $event->getIO();
-        $composer = $event->getComposer();
+        self::configureIo($event->getIO());
+        self::$io->write(sprintf('<magenta>%s</magenta>', self::$logo));
+        self::$io->write("");
 
         // Get composer.json
         $composerFile = Factory::getComposerFile();
         $json = new JsonFile($composerFile);
 
-        $composerDefinition = $json->read();
+        self::$composerDefinition = $json->read();
 
-        $io->write("<info>Setting up Workshop!</info>");
+        self::$io->write("<info>Setting up Workshop!</info>");
 
         // Get root package
-        $rootPackage = $composer->getPackage();
+        $rootPackage = $event->getComposer()->getPackage();
         while ($rootPackage instanceof AliasPackage) {
             $rootPackage = $rootPackage->getAliasOf();
         }
 
-        //set composer project name
-        $projectName = $io->askAndValidate(
-            "\n  <question> Name for composer package (eg php-school/learn-you-php)? </question> ",
+        $projectName = self::$io->askAndValidate(
+            "\n  <magenta> Name for composer package (eg php-school/learn-you-php)? </magenta> ",
             function ($answer) {
                 if (!preg_match('/[a-z0-9-]+\/[a-z0-9-]+/', $answer)) {
                     throw new Exception('Package name must be in the form: vendor/package. Lowercase, alphanumerical, may include dashes and be must slash separated.');
@@ -58,14 +101,10 @@ class Creator
             },
             3
         );
-        $composerDefinition['name'] = $projectName;
+        $projectDescription = self::$io->ask("\n  <magenta> Workshop description? </magenta> ");
 
-        $projectDescription = $io->ask("\n  <question> Workshop description? </question> ");
-        $composerDefinition['description'] = $projectDescription;
-
-        //set namespaces
-        $namespace = $io->askAndValidate(
-            "\n  <question> Namespace for Workshop (eg PhpSchool\\LearnYouPhp)? </question> ",
+        $namespace = self::$io->askAndValidate(
+            "\n  <magenta> Namespace for Workshop (eg PhpSchool\\LearnYouPhp)? </magenta> ",
             function ($answer) {
                 if (!preg_match('/^(\\\\{1,2})?\w+\\\\{1,2}(?:\w+\\\\{0,2})+$/', $answer)) {
                     throw new Exception('Package name must be a valid PHP namespace');
@@ -74,12 +113,9 @@ class Creator
             },
             3
         );
-        $composerDefinition['autoload']['psr-4'][sprintf('%s\\', trim($namespace, '\\'))] = 'src/';
-        $composerDefinition['autoload-dev']['psr-4'][sprintf('%sTest\\', trim($namespace, '\\'))] = 'test';
 
-        //set bin name
-        $binaryName = $io->askAndValidate(
-            "\n  <question> Binary name (program users will run, eg learnyouphp)? </question> ",
+        $binaryName = self::$io->askAndValidate(
+            "\n  <magenta> Binary name (program users will run, eg learnyouphp)? </magenta> ",
             function ($answer) {
                 if (!preg_match('/[a-z0-9-]+/', $answer)) {
                     throw new Exception('Binary name must lowercase, alphanumerical and can include dashed');
@@ -87,31 +123,62 @@ class Creator
                 return $answer;
             }
         );
-        $composerDefinition['bin'] = [sprintf('bin/%s', $binaryName)];
-        rename(__DIR__ . '/../../bin/my-workshop', __DIR__ . '/../../bin/' . $binaryName);
-        // House keeping
-        $io->write("<info>Remove installer</info>");
 
-        //remove dev deps
-        foreach (self::$devDependencies as $devDependency) {
-            unset($composerDefinition['require-dev'][$devDependency]);
-        }
+        self::$io->write('');
 
-        // Remove installer scripts, only need to do this once
-        unset($composerDefinition['scripts']['pre-update-cmd']);
-        unset($composerDefinition['scripts']['pre-install-cmd']);
-        if (empty($composerDefinition['scripts'])) {
-            unset($composerDefinition['scripts']);
-        }
+        self::runTask('Configuring project name and description', function () use ($projectName, $projectDescription) {
+            self::$composerDefinition['name'] = $projectName;
+            self::$composerDefinition['description'] = $projectDescription;
+        });
 
-        // Remove installer script autoloading rules
-        unset($composerDefinition['autoload']['psr-4']['WorkshopCreator\\']);
+        self::runTask('Configuring autoload and namespaces', function () use ($namespace) {
+            self::$composerDefinition['autoload']['psr-4'][sprintf('%s\\', trim($namespace, '\\'))] = 'src/';
+            self::$composerDefinition['autoload-dev']['psr-4'][sprintf('%sTest\\', trim($namespace, '\\'))] = 'test';
+        });
 
-        // Update composer definition
-        $json->write($composerDefinition);
+        self::runTask('Updating binary config', function () use ($binaryName) {
+            self::$composerDefinition['bin'] = [sprintf('bin/%s', $binaryName)];
+            rename(__DIR__ . '/../../bin/my-workshop', __DIR__ . '/../../bin/' . $binaryName);
+        });
 
-        $io->write("<info>Removing Workshop installer classes</info>");
-        self::recursiveRmdir(__DIR__);
+        self::runTask('Removing dev dependencies', function () {
+            foreach (self::$devDependencies as $devDependency) {
+                unset(self::$composerDefinition['require-dev'][$devDependency]);
+            }
+        });
+
+        self::runTask('Removing installer autoload and script config', function () {
+            unset(self::$composerDefinition['scripts']['pre-update-cmd']);
+            unset(self::$composerDefinition['scripts']['pre-install-cmd']);
+            if (empty(self::$composerDefinition['scripts'])) {
+                unset(self::$composerDefinition['scripts']);
+            }
+            unset(self::$composerDefinition['autoload']['psr-4']['WorkshopCreator\\']);
+        });
+
+        self::runTask('Writing Composer.json file', function () use ($json) {
+            $json->write(self::$composerDefinition);
+        });
+
+        self::runTask('Removing Workshop installer classes', function () {
+            self::recursiveRmdir(__DIR__);
+        });
+
+        self::$io->write(
+            sprintf("\n\n<magenta>Run your workshop with: %s bin/%s</magenta>", basename(PHP_BINARY), $binaryName)
+        );
+        self::$io->write("\n<magenta>DONE - Now build and educate!</magenta>\n");
+    }
+
+    /**
+     * @param string $message
+     * @param callable $task
+     */
+    private static function runTask($message, callable $task)
+    {
+        self::$io->write(sprintf('<info> - [ ] %s</info>', $message), false);
+        $task();
+        self::$io->overwrite(sprintf('<info> - [x] %s</info>', $message), true);
     }
 
     /**
