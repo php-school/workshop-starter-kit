@@ -21,7 +21,7 @@ switch (true) {
 
 use PhpSchool\PhpWorkshop\Application;
 
-$app = new Application(null, __DIR__ . '/config.php');
+$app = new Application('___PROJECT_TITLE___', __DIR__ . '/config.php');
 
 //$app->addExercise(...);
 //$app->addExercise(...);

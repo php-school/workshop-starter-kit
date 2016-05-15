@@ -96,7 +96,7 @@ class Creator
             $rootPackage = $rootPackage->getAliasOf();
         }
 
-        $projectName = self::$io->askAndValidate(
+        $composerName = self::$io->askAndValidate(
             "\n  <magenta> Name for composer package (eg php-school/learn-you-php)? </magenta> ",
             function ($answer) {
                 if (!preg_match('/[a-z0-9-]+\/[a-z0-9-]+/', $answer)) {
@@ -106,6 +106,8 @@ class Creator
             },
             3
         );
+
+        $projectTitle = self::$io->ask("\n  <magenta> Workshop title? </magenta> ");
         $projectDescription = self::$io->ask("\n  <magenta> Workshop description? </magenta> ");
 
         $namespace = self::$io->askAndValidate(
@@ -131,10 +133,17 @@ class Creator
 
         self::$io->write('');
 
-        self::runTask('Configuring project name and description', function () use ($projectName, $projectDescription) {
-            self::$composerDefinition['name'] = $projectName;
-            self::$composerDefinition['description'] = $projectDescription;
-        });
+        self::runTask(
+            'Configuring project name and description',
+            function () use ($composerName, $projectDescription, $projectTitle) {
+                self::$composerDefinition['name'] = $composerName;
+                self::$composerDefinition['description'] = $projectDescription;
+
+                $bootstrap = file_get_contents(__DIR__ . '/../../app/bootstrap.php');
+                $bootstrap = str_replace('___PROJECT_TITLE___', $projectTitle, $bootstrap);
+                file_put_contents(__DIR__ . '/../../app/bootstrap.php', $bootstrap);
+            }
+        );
 
         self::runTask('Configuring autoload and namespaces', function () use ($namespace) {
             self::$composerDefinition['autoload']['psr-4'][sprintf('%s\\', trim($namespace, '\\'))] = 'src/';
