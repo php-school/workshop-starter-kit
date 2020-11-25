@@ -14,10 +14,6 @@ use RecursiveIteratorIterator;
 use Symfony\Component\Console\Formatter\OutputFormatterStyle;
 use Symfony\Component\Console\Output\OutputInterface;
 
-/**
- * Class WorkshopInstaller
- * @author Aydin Hassan <aydin@hotmail.co.uk>
- */
 class Creator
 {
 
@@ -34,7 +30,7 @@ class Creator
       \/_/    \/_/\/_/\/_/        \/_____/\/____/ \/_/\/_/\/___/ \/___/\/____/';
 
     /**
-     * @var array
+     * @var array<string>
      */
     private static $devDependencies = [
         'composer/composer',
@@ -46,7 +42,7 @@ class Creator
     private static $io;
 
     /**
-     * @var array
+     * @var array<string,mixed>
      */
     private static $composerDefinition;
 
@@ -60,7 +56,7 @@ class Creator
      *
      * @param IOInterface $io
      */
-    private static function configureIo(IOInterface $io)
+    private static function configureIo(IOInterface $io): void
     {
         $refP = new \ReflectionProperty(get_class($io), 'output');
         $refP->setAccessible(true);
@@ -76,7 +72,7 @@ class Creator
     /**
      * @param Event $event
      */
-    public static function install(Event $event)
+    public static function install(Event $event): void
     {
         self::configureIo($event->getIO());
         self::$io->write(sprintf('<magenta>%s</magenta>', self::$logo));
@@ -100,7 +96,9 @@ class Creator
             "\n  <magenta> Name for composer package (eg php-school/learn-you-php)? </magenta> ",
             function ($answer) {
                 if (!preg_match('/[a-z0-9-]+\/[a-z0-9-]+/', $answer)) {
-                    throw new Exception('Package name must be in the form: vendor/package. Lowercase, alphanumerical, may include dashes and be must slash separated.');
+                    $message  = 'Package name must be in the form: vendor/package. Lowercase, alphanumerical, may ';
+                    $message .= 'include dashes and be must slash separated.';
+                    throw new Exception($message);
                 }
                 return $answer;
             },
@@ -140,7 +138,7 @@ class Creator
                 self::$composerDefinition['description'] = $projectDescription;
 
                 $bootstrap = file_get_contents(__DIR__ . '/../../app/bootstrap.php');
-                $bootstrap = str_replace('___PROJECT_TITLE___', $projectTitle, $bootstrap);
+                $bootstrap = str_replace('___PROJECT_TITLE___', (string) $projectTitle, (string) $bootstrap);
                 file_put_contents(__DIR__ . '/../../app/bootstrap.php', $bootstrap);
             }
         );
@@ -181,21 +179,14 @@ class Creator
         });
     }
 
-    /**
-     * @param string $message
-     * @param callable $task
-     */
-    private static function runTask($message, callable $task)
+    private static function runTask(string $message, callable $task): void
     {
         self::$io->write(sprintf('<info> - [ ] %s</info>', $message), false);
         $task();
         self::$io->overwrite(sprintf('<info> - [x] %s</info>', $message), true);
     }
 
-    /**
-     * @param Event $event
-     */
-    public static function summary(Event $event)
+    public static function summary(Event $event): void
     {
         self::$io->write(
             sprintf("\n\n<magenta>Run your workshop with: %s bin/%s</magenta>", basename(PHP_BINARY), self::$binaryName)
@@ -205,10 +196,8 @@ class Creator
 
     /**
      * Recursively remove a directory.
-     *
-     * @param string $directory
      */
-    private static function recursiveRmdir($directory)
+    private static function recursiveRmdir(string $directory): void
     {
         $rdi = new RecursiveDirectoryIterator($directory, FilesystemIterator::SKIP_DOTS);
         $rii = new RecursiveIteratorIterator($rdi, RecursiveIteratorIterator::CHILD_FIRST);
