@@ -27,7 +27,7 @@ jobs:
           extensions: pdo_sqlite
 
       - name: Install Dependencies
-        run: composer update --no-plugins
+        run: composer update --no-scripts
 
       - name: Run phpunit tests
         run: |
