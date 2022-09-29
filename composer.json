@@ -1,6 +1,7 @@
 {
     "name": "php-school/workshop-starter-kit",
     "description": "PHP Workshop Starter Kit",
+    "type": "php-school-workshop",
     "keywords": ["cli", "console", "terminal", "phpschool", "php-school", "workshop", "learning", "education"],
     "homepage": "https://www.phpschool.io",
     "license": "MIT",
