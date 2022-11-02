@@ -41,7 +41,12 @@ class Creator
     private static $io;
 
     /**
-     * @var array<string,mixed>
+     * @var array{
+     *     autoload: array{psr-4: array<string, string>},
+     *     autoload-dev: array{psr-4: array<string, string>},
+     *     require-dev: array<string, string>,
+     *     scripts: array<string, string>
+     * }
      */
     private static $composerDefinition;
 
@@ -81,7 +86,14 @@ class Creator
         $composerFile = Factory::getComposerFile();
         $json = new JsonFile($composerFile);
 
-        self::$composerDefinition = $json->read();
+        /** @var array{
+         *     autoload: array{psr-4: array<string, string>},
+         *     autoload-dev: array{psr-4: array<string, string>},
+         *     require-dev: array<string, string>,
+         *     scripts: array<string, string>
+         * } $definition */
+        $definition = $json->read();
+        self::$composerDefinition = $definition;
 
         self::$io->write("<info>Setting up Workshop!</info>");
 
@@ -104,9 +116,11 @@ class Creator
             3
         );
 
+        /** @var string $projectTitle */
         $projectTitle = self::$io->ask("\n  <magenta> Workshop title? </magenta> ");
         $projectDescription = self::$io->ask("\n  <magenta> Workshop description? </magenta> ");
 
+        /** @var string $namespace */
         $namespace = self::$io->askAndValidate(
             "\n  <magenta> Namespace for Workshop (eg PhpSchool\\LearnYouPhp)? </magenta> ",
             function ($answer) {
@@ -118,15 +132,17 @@ class Creator
             3
         );
 
-        self::$binaryName = self::$io->askAndValidate(
+        /** @var string $binary */
+        $binary = self::$io->askAndValidate(
             "\n  <magenta> Binary name (program users will run, eg learnyouphp)? </magenta> ",
-            function ($answer) {
+            function ($answer): string {
                 if (!preg_match('/[a-z0-9-]+/', $answer)) {
                     throw new Exception('Binary name must lowercase, alphanumerical and can include dashed');
                 }
                 return $answer;
             }
         );
+        self::$binaryName = $binary;
 
         self::$io->write('');
 
@@ -137,7 +153,7 @@ class Creator
                 self::$composerDefinition['description'] = $projectDescription;
 
                 $bootstrap = file_get_contents(__DIR__ . '/../../app/bootstrap.php');
-                $bootstrap = str_replace('___PROJECT_TITLE___', (string) $projectTitle, (string) $bootstrap);
+                $bootstrap = str_replace('___PROJECT_TITLE___', $projectTitle, (string) $bootstrap);
                 file_put_contents(__DIR__ . '/../../app/bootstrap.php', $bootstrap);
             }
         );
@@ -201,6 +217,8 @@ class Creator
         $rdi = new RecursiveDirectoryIterator($directory, FilesystemIterator::SKIP_DOTS);
         $rii = new RecursiveIteratorIterator($rdi, RecursiveIteratorIterator::CHILD_FIRST);
         foreach ($rii as $filename => $fileInfo) {
+            /** @var \SplFileInfo $fileInfo */
+            /** @var string $filename */
             if ($fileInfo->isDir()) {
                 rmdir($filename);
                 continue;
